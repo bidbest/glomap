@@ -1,5 +1,5 @@
-# docker pull colmap/colmap:latest
 ./build.sh
+# Requires Path argument!!
 docker run --rm \
 	-e QT_XCB_GL_INTEGRATION=xcb_egl \
     -e DISPLAY=:0 \
