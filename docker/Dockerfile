@@ -6,7 +6,7 @@ ARG NVIDIA_CUDA_VERSION=12.3.1
 #
 FROM nvidia/cuda:${NVIDIA_CUDA_VERSION}-devel-ubuntu${UBUNTU_VERSION} as builder
 
-ARG COLMAP_GIT_COMMIT=main
+
 ARG CUDA_ARCHITECTURES=native
 ENV QT_XCB_GL_INTEGRATION=xcb_egl
 
@@ -38,6 +38,8 @@ RUN apt-get update && \
         libceres-dev
 
 # Build and install COLMAP.
+ARG COLMAP_GIT_COMMIT=5966e487f6fdaa29c5fee7121a3d863d289d0eb7
+
 RUN git clone https://github.com/colmap/colmap.git
 RUN cd colmap && \
     git fetch https://github.com/colmap/colmap.git ${COLMAP_GIT_COMMIT} && \
@@ -48,42 +50,11 @@ RUN cd colmap && \
         -DCMAKE_INSTALL_PREFIX=/colmap_installed && \
     ninja install
 
-#
-# Docker runtime stage.
-#
-# FROM nvidia/cuda:${NVIDIA_CUDA_VERSION}-runtime-ubuntu${UBUNTU_VERSION} as runtime
-
-# Minimal dependencies to run COLMAP binary compiled in the builder stage.
-# Note: this reduces the size of the final image considerably, since all the
-# build dependencies are not needed.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends --no-install-suggests \
-        libboost-filesystem1.74.0 \
-        libboost-program-options1.74.0 \
-        libc6 \
-        libceres2 \
-        libfreeimage3 \
-        libgcc-s1 \
-        libgl1 \
-        libglew2.2 \
-        libgoogle-glog0v5 \
-        libqt5core5a \
-        libqt5gui5 \
-        libqt5widgets5
-
-# Copy all files from /colmap_installed/ in the builder stage to /usr/local/ in
-# the runtime stage. This simulates installing COLMAP in the default location
-# (/usr/local/), which simplifies environment variables. It also allows the user
-# of this Docker image to use it as a base image for compiling against COLMAP as
-# a library. For instance, CMake will be able to find COLMAP easily with the
-# command: find_package(COLMAP REQUIRED).
-# COPY --from=builder /colmap_installed/ /usr/local/
 RUN cp -r /colmap_installed /usr/local/
 
 
-
 # Install PoseLib
-ARG POSELIB_GIT_COMMIT=master
+ARG POSELIB_GIT_COMMIT=0439b2d361125915b8821043fca9376e6cc575b9
 
 RUN git clone --recursive https://github.com/vlarsson/PoseLib.git
 RUN cd PoseLib && \
@@ -100,9 +71,9 @@ RUN cp -r /poselib_installed /usr/local/
 # Install Glomap
 ARG GLOMAP_GIT_COMMIT=main
 
-RUN git clone --recursive https://github.com/colmap/glomap.git
+RUN git clone --recursive https://github.com/bidbest/glomap.git
 RUN cd glomap && \
-    git fetch https://github.com/colmap/glomap.git ${GLOMAP_GIT_COMMIT} && \
+    git fetch https://github.com/bidbest/glomap.git ${GLOMAP_GIT_COMMIT} && \
     git checkout FETCH_HEAD && \
     mkdir build && \
     cd build && \
@@ -110,3 +81,6 @@ RUN cd glomap && \
     ninja install
 
 RUN cp -r /glomap_installed /usr/local/
+
+# Add all paths 
+RUN echo "export PATH=${PATH}:/usr/local/colmap_installed/bin:/usr/local/poselib_installed/bin:/usr/local/glomap_installed/bin" >> ~/.bashrc
